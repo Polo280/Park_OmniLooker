@@ -3,9 +3,9 @@ import serial
 import numpy as np
 import struct
 
-from tlv_defines import *
-from parseTLVs import *
-from common import *
+from Parsing_Libs.tlv_defines import *
+from Parsing_Libs.parseTLVs import *
+from Parsing_Libs.common import *
 
 class RadarHandler:
     def __init__(self, port:str, baud_rate=115200, timeout=2):
@@ -108,7 +108,7 @@ class RadarHandler:
                         continue
                     
                     # Send each line to the radar sensor
-                    # print(f"Sending command: {line.strip()}")
+                    print(f"Sending command: {line.strip()}")
                     self.serial_handler.write((line.strip() + '\n').encode())
                     time.sleep(0.1)  # Short delay for the sensor to process the command
 
@@ -252,7 +252,6 @@ class RadarHandler:
         self.sendConfig(config_path)
         valid_word = self.validateMagicWord()
         if valid_word:
-            print("valid")
             self.getSensorFrame()
             self.output_dict = self.parseSensorFrame()
 
@@ -260,9 +259,9 @@ class RadarHandler:
 def main():
     try:
         radar = RadarHandler(port="COM10")
-        radar.getDataBlock(config_path="C:/Users/jorgl/OneDrive/Escritorio/Park_Omnilooker/Radar Tools/python/Configs/PresenceDetect.cfg")
+        radar.getDataBlock(config_path="./Configuration_Files/PresenceDetect.cfg")
         # Write point cloud into file 
-        with open("C:/Users/jorgl/OneDrive/Escritorio/Park_Omnilooker/Radar Tools/python/output.txt", 'w') as file: 
+        with open("./RadarOutput.txt", 'w') as file: 
             file.write(str(radar.output_dict))
             print("Data succesfully written to output.txt")
         radar.closePort()

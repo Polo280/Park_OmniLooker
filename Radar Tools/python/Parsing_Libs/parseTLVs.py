@@ -4,7 +4,7 @@ import numpy as np
 import math
 
 # Local File Imports
-from common import NUM_CLASSES_IN_CLASSIFIER, sphericalToCartesianPointCloud
+from Parsing_Libs.common import NUM_CLASSES_IN_CLASSIFIER, sphericalToCartesianPointCloud
 
 log = logging.getLogger(__name__)
 
