@@ -3,6 +3,9 @@ import serial
 import numpy as np
 import struct
 
+from tlv_defines import *
+from parseTLVs import *
+from common import *
 
 class RadarHandler:
     def __init__(self, port:str, baud_rate=115200, timeout=2):
@@ -14,6 +17,59 @@ class RadarHandler:
         # Radar parameters
         self.configured = False 
         self.frame_data = None 
+        # TLV decoding functions 
+        self.parserFunctions = {
+            MMWDEMO_OUTPUT_MSG_DETECTED_POINTS:                     parsePointCloudTLV,
+            MMWDEMO_OUTPUT_MSG_RANGE_PROFILE:                       parseRangeProfileTLV,
+            MMWDEMO_OUTPUT_EXT_MSG_RANGE_PROFILE_MAJOR:             parseRangeProfileTLV,
+            MMWDEMO_OUTPUT_EXT_MSG_RANGE_PROFILE_MINOR:             parseRangeProfileTLV,
+            MMWDEMO_OUTPUT_MSG_DETECTED_POINTS_SIDE_INFO:           parseSideInfoTLV,
+            MMWDEMO_OUTPUT_MSG_SPHERICAL_POINTS:                    parseSphericalPointCloudTLV,
+            MMWDEMO_OUTPUT_MSG_TRACKERPROC_3D_TARGET_LIST:          parseTrackTLV,
+            MMWDEMO_OUTPUT_EXT_MSG_TARGET_LIST:                     parseTrackTLV,
+            MMWDEMO_OUTPUT_MSG_TRACKERPROC_TARGET_HEIGHT:           parseTrackHeightTLV,
+            MMWDEMO_OUTPUT_MSG_TRACKERPROC_TARGET_INDEX:            parseTargetIndexTLV,
+            MMWDEMO_OUTPUT_EXT_MSG_TARGET_INDEX:                    parseTargetIndexTLV,
+            MMWDEMO_OUTPUT_MSG_COMPRESSED_POINTS:                   parseCompressedSphericalPointCloudTLV,
+            MMWDEMO_OUTPUT_MSG_OCCUPANCY_STATE_MACHINE:             parseOccStateMachTLV,
+            MMWDEMO_OUTPUT_MSG_VITALSIGNS:                          parseVitalSignsTLV,
+            MMWDEMO_OUTPUT_EXT_MSG_DETECTED_POINTS:                 parsePointCloudExtTLV,
+            MMWDEMO_OUTPUT_MSG_GESTURE_FEATURES_6843:               parseGestureFeaturesTLV,
+            MMWDEMO_OUTPUT_MSG_GESTURE_OUTPUT_PROB_6843:            parseGestureProbTLV6843,
+            MMWDEMO_OUTPUT_MSG_GESTURE_CLASSIFIER_6432:             parseGestureClassifierTLV6432,
+            MMWDEMO_OUTPUT_EXT_MSG_ENHANCED_PRESENCE_INDICATION:    parseEnhancedPresenceInfoTLV,
+            MMWDEMO_OUTPUT_EXT_MSG_CLASSIFIER_INFO:                 parseClassifierTLV,
+            MMWDEMO_OUTPUT_MSG_SURFACE_CLASSIFICATION:              parseSurfaceClassificationTLV,
+            MMWDEMO_OUTPUT_EXT_MSG_VELOCITY:                        parseVelocityTLV,
+            MMWDEMO_OUTPUT_EXT_MSG_RX_CHAN_COMPENSATION_INFO:       parseRXChanCompTLV,
+            MMWDEMO_OUTPUT_MSG_EXT_STATS:                           parseExtStatsTLV,
+            MMWDEMO_OUTPUT_MSG_GESTURE_FEATURES_6432:               parseGestureFeaturesTLV6432,
+            MMWDEMO_OUTPUT_MSG_GESTURE_PRESENCE_x432:               parseGesturePresenceTLV6432,
+            MMWDEMO_OUTPUT_MSG_GESTURE_PRESENCE_THRESH_x432:        parsePresenceThreshold,
+            MMWDEMO_OUTPUT_EXT_MSG_STATS_BSD:                       parseExtStatsTLVBSD,
+            MMWDEMO_OUTPUT_EXT_MSG_TARGET_LIST_2D_BSD:              parseTrackTLV2D,
+            MMWDEMO_OUTPUT_EXT_MSG_CAM_TRIGGERS:                    parseCamTLV,
+            MMWDEMO_OUTPUT_EXT_MSG_POINT_CLOUD_ANTENNA_SYMBOLS:     parseAntSymbols,
+            MMWDEMO_OUTPUT_EXT_MSG_ADC_SAMPLES:                     parseADCSamples,
+            MMWDEMO_OUTPUT_EXT_MSG_MODE_SWITCH_INFO:                parseModeSwitchTLV
+        }
+        # Some unsupported but valid TLVs 
+        self.unusedTLVs = [
+            MMWDEMO_OUTPUT_MSG_NOISE_PROFILE,
+            MMWDEMO_OUTPUT_MSG_AZIMUT_STATIC_HEAT_MAP,
+            MMWDEMO_OUTPUT_MSG_RANGE_DOPPLER_HEAT_MAP,
+            MMWDEMO_OUTPUT_MSG_STATS,
+            MMWDEMO_OUTPUT_MSG_AZIMUT_ELEVATION_STATIC_HEAT_MAP,
+            MMWDEMO_OUTPUT_MSG_TEMPERATURE_STATS,
+            MMWDEMO_OUTPUT_MSG_PRESCENCE_INDICATION,
+            MMWDEMO_OUTPUT_MSG_GESTURE_PRESENCE_x432,
+            MMWDEMO_OUTPUT_MSG_GESTURE_PRESENCE_THRESH_x432,
+            MMWDEMO_OUTPUT_EXT_MSG_MICRO_DOPPLER_RAW_DATA,
+            MMWDEMO_OUTPUT_EXT_MSG_MICRO_DOPPLER_FEATURES,
+            MMWDEMO_OUTPUT_EXT_MSG_QUICK_EVAL_INFO
+        ]
+        # Dictionary to store output data
+        self.output_dict = {}
 
     ############### SERIAL HANDLER ###############
     def openPort(self) -> None:
@@ -23,7 +79,7 @@ class RadarHandler:
         # Attempt to open serial port 
         try:
             self.serial_handler = serial.Serial(self.port, self.baud_rate, timeout=self.serial_timeout)
-            print("Success openning port")
+            # print("Success openning port")
         except serial.SerialException as ex: 
             print(f"Failed to open serial port: {ex}")
 
@@ -88,9 +144,8 @@ class RadarHandler:
                     index += 1
                     self.frame_data.append(magic_byte[0])
                     if index >= 8:
-                        print(self.frame_data)
                         print("Magic verification passed succesfully\n")
-                        break
+                        return True
                     magic_byte = self.readAndParseBytes(1)   # Read a byte from the serial port 
                 # Otherwise
                 else:
@@ -120,7 +175,7 @@ class RadarHandler:
 
     def parseSensorFrame(self):
         # Constants to parse the data (which is in TLV [Type, length, value] format)
-        header_struct = '-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  '  # Q = 8-byte int, 8I = 8 consecutive 4-byte int
+        header_struct = 'Q8I'                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
         frame_header_length = struct.calcsize(header_struct)
         tlv_header_length = 8
 
@@ -138,37 +193,78 @@ class RadarHandler:
             print(f"Time CPU cycles: {timeCPUCycles}")
             print(f"Detected Objects: {numDetectedObj}")
             print(f"Number TLVs: {numTLVs}")
-            print(f"Sub-frame number: {subFrameNum}")
+            print(f"Sub-frame number: {subFrameNum}\n")
         except Exception as ex:
             print(f'Error: Could not read frame header -> {ex}')
 
+        # Dictionary to store result of processing 
+        output_dict = {}
+        output_dict['frameNum'] = frameNum
         # Check message integrity 
         self.frame_data = self.frame_data[frame_header_length:]
         total_len_check += frame_header_length
         # Each point has the following: X, Y, Z, Doppler, SNR, Noise, Track index
-        # point_cloud = np.zeros((numDetectedObj, 7), np.float64)  # One matrix for each object detected 
-        # point_cloud[:, 6] = 255
+        output_dict['pointCloud']= np.zeros((numDetectedObj, 7), np.float64)  # One matrix for each object detected 
+        output_dict['pointCloud'][:, 6] = 255
 
         # Find and parse all TLV's received 
+        for i in range(1):
+            try:
+                tlvType, tlvLength = self.tlvHeaderDecode(self.frame_data[:tlv_header_length])
+                print(f"type: {tlvType}")
+                self.frame_data = self.frame_data[tlv_header_length:]   # Discard current TLV to not consider it on next iter
+                total_len_check += tlv_header_length
+            except Exception as ex:
+                print(f'Error: Parsing of TLVs went wrong -> {ex}')
 
-        # Decode TLV Header
-        def tlvHeaderDecode(data):
-            tlvType, tlvLength = struct.unpack('2I', data)   # 2 consecutive 4-byte int
-            return tlvType, tlvLength
+        # If the function is defined in our code, then go to execute it 
+        if tlvType in self.parserFunctions:
+            self.parserFunctions[tlvType](self.frame_data[:tlvLength], tlvLength, output_dict)
+        elif tlvType in self.unusedTLVs:
+            print("No function to parse TLV type: %d" % (tlvType))
+        else:
+            print("Invalid TLV type: %d" % (tlvType))
+        
+        # Go to next TLV 
+        self.frame_data = self.frame_data[tlvLength:]
+        total_len_check += tlvLength
 
+        # Pad totalLenCheck to the next largest multiple of 32
+        # since the device does this to the totalPacketLen for transmission uniformity
+        total_len_check= 32 * math.ceil(total_len_check / 32)
+
+        # if (total_len_check != totalPacketLen):
+        #     print('Frame packet length read is not equal to totalPacketLen in frame header. Subsequent frames may be dropped.')
+        #     raise ConnectionAbortedError
+
+        return output_dict 
+
+
+    # Decode TLV Header
+    def tlvHeaderDecode(self, data):
+        tlvType, tlvLength = struct.unpack('2I', data)   # 2 consecutive 4-byte int
+        return tlvType, tlvLength
+
+
+    # Radar normal workflow in a function
+    def getDataBlock(self, config_path:str, ):
+        self.openPort()
+        self.sendConfig(config_path)
+        valid_word = self.validateMagicWord()
+        if valid_word:
+            print("valid")
+            self.getSensorFrame()
+            self.output_dict = self.parseSensorFrame()
 
 
 def main():
     try:
         radar = RadarHandler(port="COM10")
-        radar.openPort()
-        # Configure radar
-        radar.sendConfig("C:/Users/jorgl/OneDrive/Escritorio/Park_Omnilooker/Radar Tools/python/Configs/PresenceDetect.cfg")
-        # Start receiving 
-        radar.validateMagicWord()
-        radar.getSensorFrame()
-        radar.parseSensorFrame()
-
+        radar.getDataBlock(config_path="C:/Users/jorgl/OneDrive/Escritorio/Park_Omnilooker/Radar Tools/python/Configs/PresenceDetect.cfg")
+        # Write point cloud into file 
+        with open("C:/Users/jorgl/OneDrive/Escritorio/Park_Omnilooker/Radar Tools/python/output.txt", 'w') as file: 
+            file.write(str(radar.output_dict))
+            print("Data succesfully written to output.txt")
         radar.closePort()
 
     except Exception as ex:
