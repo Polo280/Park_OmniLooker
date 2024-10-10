@@ -1,0 +1,11 @@
+blinker==1.8.2
+click==8.1.7
+Flask==3.0.3
+graphsurgeon==0.4.5
+itsdangerous==2.2.0
+Jinja2==3.1.4
+MarkupSafe==3.0.1
+numpy==2.1.2
+pyserial==3.5
+uff==0.6.9
+Werkzeug==3.0.4

@@ -3,9 +3,13 @@ import serial
 import numpy as np
 import struct
 
-from Parsing_Libs.tlv_defines import *
-from Parsing_Libs.parseTLVs import *
-from Parsing_Libs.common import *
+import sys
+sys.path.append('/home/squirreldj/Park_OmniLooker/Radar_Tools')
+
+from .Parsing_Libs.tlv_defines import *
+from .Parsing_Libs.parseTLVs import *
+from .Parsing_Libs.common import * 
+
 
 class RadarHandler:
     def __init__(self, port:str, baud_rate=115200, timeout=2):
@@ -77,11 +81,7 @@ class RadarHandler:
             print("Please specify a Serial Port")
             return
         # Attempt to open serial port 
-        try:
-            self.serial_handler = serial.Serial(self.port, self.baud_rate, timeout=self.serial_timeout)
-            # print("Success openning port")
-        except serial.SerialException as ex: 
-            print(f"Failed to open serial port: {ex}")
+        self.serial_handler = serial.Serial(self.port, self.baud_rate, timeout=self.serial_timeout)
 
 
     def readBytes(self, bytes:int) -> str:
