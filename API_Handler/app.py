@@ -2,12 +2,15 @@
 import sys
 sys.path.append('/home/squirreldj/Park_OmniLooker')
 
+import threading
 import numpy as np
 from flask import Flask, jsonify
 from Radar_Tools.RadarData import RadarHandler
 from Environment_Sensor.EnvironmentSensor import Environment_Sensor
 
 app = Flask(__name__)
+
+display_stop = threading.Event()  # Store the state of environment sensor display 
 
 
 ''' Convert dictionaries to serializable items to be able to jsonify '''
@@ -52,15 +55,45 @@ def getEnvironmentData():
         env_sensor = Environment_Sensor()
         env_sensor.startSensors()
         env_sensor.getEnvironmentData()
-        env_sensor.getAccelerations()
-        env_sensor.getOrientation()      
+        env_sensor.getIMU_Data()
         
-        output = convert_to_serializable([env_sensor.env_data, env_sensor.gyro_data, env_sensor.accel_data])
-        return jsonify(output), 200
+        output = {
+            # Environment variables 
+            "Temperature C" : env_sensor.env_data[0],
+            "Humidity %"     : env_sensor.env_data[1],
+            "Pressure hPa"   : env_sensor.env_data[2],
+            "Lux"            : env_sensor.env_data[3],
+            "UV uW/cm2"      : env_sensor.env_data[4],
+            "VOC ppm"        : env_sensor.env_data[5],
+            # IMU values
+            "Acceleration" : env_sensor.accel_data,
+            "Orientation"  : env_sensor.gyro_data,
+            "Magnetic field" : env_sensor.magnetometer_data
+        }
+        formatted_output = convert_to_serializable(output)
+        return jsonify(formatted_output), 200
         
     except Exception as ex:
         return jsonify({"error": str(ex)}), 500 
 
+
+# /////////  OLED DISPLAY HANDLER  /////////
+def updateDisplay():
+    if not display_stop:
+        pass 
+
+@app.route('/start_oled', methods=['GET'])
+def startOLED():
+    global display_thread 
+    if display_thread is None or not display_thread.is_alive():
+        display_stop.clear()  # Reset the event
+        display_thread = threading.Thread(target=updateDisplay)
+        display_thread.daemon = True  # Allow thread to exit when the main program exits
+        display_thread.start()
+        return jsonify({"status": "Display started"}), 200
+    else:
+        return jsonify({"status": "Display update already running"}), 400
+    
 
 # TEST
 if __name__ == '__main__':

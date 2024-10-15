@@ -55,32 +55,24 @@ class Environment_Sensor:
         self.env_data[5] = round(self.sgp.raw(), 2)
         
         
-    ''' Get roll, pitch, yaw from the gyroscope '''
-    def getOrientation(self):
-        orientation_angles = self.icm20948.getdata()
+    ''' Get data from the IMU and magnetometer '''
+    def getIMU_Data(self):
+        imu_data = self.icm20948.getdata()
         
-        self.gyro_data[0] = round(orientation_angles[3], 2)
-        self.gyro_data[1] = round(orientation_angles[4], 2)
-        self.gyro_data[2] = round(orientation_angles[5], 2)
+        # Get accelerations
+        self.accel_data[0] = round(imu_data[0], 2)
+        self.accel_data[1] = round(imu_data[1], 2)
+        self.accel_data[2] = round(imu_data[2], 2)
         
-    
-    ''' Get acceleration vector of the module '''
-    def getAccelerations(self):
-        # NOTE: Check if this is correct 
-        accelerations = self.icm20948.getdata()
+        # Get orientation
+        self.gyro_data[0] = round(imu_data[3], 2)
+        self.gyro_data[1] = round(imu_data[4], 2)
+        self.gyro_data[2] = round(imu_data[5], 2)
         
-        self.accel_data[0] = round(accelerations[0], 2)
-        self.accel_data[1] = round(accelerations[1], 2)
-        self.accel_data[2] = round(accelerations[2], 2)
-        
-    
-    ''' Get magnetic field vector '''
-    def getMangetometerData(self):
-        magnet = self.icm20948.getdata()
-        
-        self.magnetometer_data[0] = round(magnet[6], 2)
-        self.magnetometer_data[1] = round(magnet[7], 2)
-        self.magnetometer_data[2] = round(magnet[8], 2)
+        # Get magnetic field vector
+        self.magnetometer_data[0] = round(imu_data[6], 2)
+        self.magnetometer_data[1] = round(imu_data[7], 2)
+        self.magnetometer_data[2] = round(imu_data[8], 2)
         
 
     ''' Show the data on the oled display '''
